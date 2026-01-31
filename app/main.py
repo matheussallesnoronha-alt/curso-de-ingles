@@ -6,7 +6,11 @@ from app.config import VERIFY_TOKEN, SEND_AUDIO, validate_env
 from app.whatsapp import send_text, send_audio_by_bytes, get_media_url, download_media
 from app.ai import handle_message_for_user
 
-app = FastAPI(title="English WhatsApp Course (MVP)")
+app = FastAPI(title="English WhatsApp Course (MVP
+
+@app.get("/")
+def root():
+    return {"status": "ok", "service": "curso-de-ingles"}              
 
 @app.on_event("startup")
 def _startup():

@@ -13,21 +13,25 @@ app = FastAPI(
     redoc_url=None
 )
 
-
-@app.get("/")
-def root():
-    return {"status": "ok", "service": "curso-de-ingles"}              
-
 @app.on_event("startup")
 def _startup():
+    # Se faltar variável no Render, vai falhar aqui.
+    # (Depois a gente ajusta se necessário.)
     validate_env()
 
+# ✅ Rota raiz para teste rápido
+@app.get("/")
+def root():
+    return {"status": "ok", "service": "curso-de-ingles"}
+
+# 1) Verificação do webhook (Meta chama no cadastro)
 @app.get("/webhook")
 def verify(hub_mode: str = "", hub_challenge: str = "", hub_verify_token: str = ""):
     if hub_verify_token == VERIFY_TOKEN:
         return int(hub_challenge)
     return {"error": "verify token inválido"}
 
+# 2) Receber mensagens do WhatsApp
 @app.post("/webhook")
 async def webhook(request: Request):
     data = await request.json()
@@ -62,7 +66,7 @@ async def webhook(request: Request):
     send_text(phone, "Send me a text or a voice message in English 🙂")
     return {"status": "ok"}
 
-# ======== TESTE LOCAL (sem WhatsApp) ========
+# ======== TESTE LOCAL/REMOTO (sem WhatsApp) ========
 
 class TestText(BaseModel):
     phone: str
@@ -71,21 +75,6 @@ class TestText(BaseModel):
 @app.post("/test/text")
 def test_text(payload: TestText):
     result = handle_message_for_user(payload.phone, "text", payload.text, None)
-    out = {"text": result["text"], "blocked": result.get("blocked", False)}
-    if SEND_AUDIO and not result.get("blocked"):
-        out["audio_b64"] = base64.b64encode(result["audio_bytes"]).decode("ascii")
-    return out
-
-class TestAudio(BaseModel):
-    phone: str
-    filename: str = "audio.ogg"
-    audio_b64: str
-    mime_type: str = "audio/ogg"
-
-@app.post("/test/audio")
-def test_audio(payload: TestAudio):
-    audio_bytes = base64.b64decode(payload.audio_b64)
-    result = handle_message_for_user(payload.phone, "audio", None, audio_bytes, audio_filename=payload.filename, audio_mime=payload.mime_type)
     out = {"text": result["text"], "blocked": result.get("blocked", False)}
     if SEND_AUDIO and not result.get("blocked"):
         out["audio_b64"] = base64.b64encode(result["audio_bytes"]).decode("ascii")

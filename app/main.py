@@ -10,34 +10,35 @@ app = FastAPI(
     title="English WhatsApp Course (MVP)",
     docs_url="/docs",
     openapi_url="/openapi.json",
-    redoc_url=None
+    redoc_url=None,
 )
 
 @app.on_event("startup")
 def _startup():
-    # Se faltar variável no Render, vai falhar aqui.
-    # (Depois a gente ajusta se necessário.)
     validate_env()
 
-# ✅ Rota raiz para teste rápido
 @app.get("/")
 def root():
     return {"status": "ok", "service": "curso-de-ingles"}
 
-# 1) Verificação do webhook (Meta chama no cadastro)
+# ---- Webhook verification (Meta) ----
 @app.get("/webhook")
-def verify(hub_mode: str = "", hub_challenge: str = "", hub_verify_token: str = ""):
+def verify(
+    hub_mode: str = "",
+    hub_challenge: str = "",
+    hub_verify_token: str = "",
+):
     if hub_verify_token == VERIFY_TOKEN:
         return int(hub_challenge)
     return {"error": "verify token inválido"}
 
-# 2) Receber mensagens do WhatsApp
+# ---- Receive WhatsApp messages ----
 @app.post("/webhook")
 async def webhook(request: Request):
     data = await request.json()
 
-    change = data.get("entry", [{}])[0].get("changes", [{}])[0].get("value", {})
-    messages = change.get("messages", [])
+    value = data.get("entry", [{}])[0].get("changes", [{}])[0].get("value", {})
+    messages = value.get("messages", [])
     if not messages:
         return {"status": "no-messages"}
 
@@ -57,7 +58,10 @@ async def webhook(request: Request):
         media_id = msg["audio"]["id"]
         media_url = get_media_url(media_id)
         audio_bytes = download_media(media_url)
-        result = handle_message_for_user(phone, "audio", None, audio_bytes, audio_filename="audio.ogg", audio_mime="audio/ogg")
+        result = handle_message_for_user(
+            phone, "audio", None, audio_bytes,
+            audio_filename="audio.ogg", audio_mime="audio/ogg"
+        )
         send_text(phone, result["text"])
         if SEND_AUDIO and not result.get("blocked"):
             send_audio_by_bytes(phone, result["audio_bytes"])
@@ -66,8 +70,7 @@ async def webhook(request: Request):
     send_text(phone, "Send me a text or a voice message in English 🙂")
     return {"status": "ok"}
 
-# ======== TESTE LOCAL/REMOTO (sem WhatsApp) ========
-
+# ---- Test endpoint (no WhatsApp needed) ----
 class TestText(BaseModel):
     phone: str
     text: str
@@ -79,3 +82,4 @@ def test_text(payload: TestText):
     if SEND_AUDIO and not result.get("blocked"):
         out["audio_b64"] = base64.b64encode(result["audio_bytes"]).decode("ascii")
     return out
+

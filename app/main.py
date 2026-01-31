@@ -9,8 +9,10 @@ from app.ai import handle_message_for_user
 app = FastAPI(
     title="English WhatsApp Course (MVP)",
     docs_url="/docs",
-    openapi_url="/openapi.json"
+    openapi_url="/openapi.json",
+    redoc_url=None
 )
+
 
 @app.get("/")
 def root():
